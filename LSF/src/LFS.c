@@ -52,7 +52,7 @@ int main() {
 	logger = iniciar_logger();
 	tiempos_de_compactacion = log_create("tiempos_bloqueo.log", "LFS", 0,
 			LOG_LEVEL_INFO);
-	pantalla = log_create("pantalla.log", "LFS", 1, LOG_LEVEL_DEBUG);
+	pantalla = log_create("pantalla.log", "LFS", 0, LOG_LEVEL_DEBUG);
 	dumpeo = log_create("dump.log", "LFS", 0, LOG_LEVEL_DEBUG);
 	char* config_path;
 	printf("Ingrese ruta del archivo de configuración de LFS \n");
@@ -112,8 +112,7 @@ int main() {
 	inotify_thread = pthread_create(&threadInotify, NULL, (void*) watch_config,
 			archivo_config);
 	if (inotify_thread) {
-		fprintf(stderr, "Error - pthread_create() return code: %d\n",
-				retorno_de_consola);
+		//fprintf(stderr, "Error - pthread_create() return code: %d\n",retorno_de_consola);
 		exit(EXIT_FAILURE);
 	}
 	pthread_detach(inotify_thread);
@@ -121,8 +120,7 @@ int main() {
 	retorno_de_consola = pthread_create(&threadConsola, NULL,
 			recibir_por_consola, NULL);
 	if (retorno_de_consola) {
-		fprintf(stderr, "Error - pthread_create() return code: %d\n",
-				retorno_de_consola);
+		//fprintf(stderr, "Error - pthread_create() return code: %d\n",retorno_de_consola);
 		exit(EXIT_FAILURE);
 	}
 	pthread_detach(threadConsola);
@@ -132,8 +130,7 @@ int main() {
 
 	status_thread_dumpeo = pthread_create(&threadDumpeo, NULL, dump, NULL);
 	if (status_thread_dumpeo) {
-		fprintf(stderr, "Error - pthread_create() return code: %d\n",
-				status_thread_dumpeo);
+		//fprintf(stderr, "Error - pthread_create() return code: %d\n",status_thread_dumpeo);
 		exit(EXIT_FAILURE);
 	}
 
@@ -192,7 +189,7 @@ int main() {
 	iret1 = pthread_create(&threadL, NULL, receptorDeConsultas,
 			(void*) socketCliente);
 	if (iret1) {
-		fprintf(stderr, "Error - pthread_create() return code: %d\n", iret1);
+		//fprintf(stderr, "Error - pthread_create() return code: %d\n", iret1);
 		exit(EXIT_FAILURE);
 	}
 	pthread_detach(threadL);
@@ -218,8 +215,7 @@ int main() {
 		iret1 = pthread_create(&threadL, NULL, receptorDeConsultas,
 				(void*) socketNuevo);
 		if (iret1) {
-			fprintf(stderr, "Error - pthread_create() return code: %d\n",
-					iret1);
+			//fprintf(stderr, "Error - pthread_create() return code: %d\n",iret1);
 			exit(EXIT_FAILURE);
 		}
 		pthread_detach(threadL);
@@ -250,8 +246,7 @@ void crear_hilo_compactacion_de_tabla(Metadata* una_tabla) {
 	status_thread_compactacion = pthread_create(&threadCompactacion, NULL,
 			compactar_tabla, una_tabla);
 	if (status_thread_compactacion) {
-		fprintf(stderr, "Error - pthread_create() return code: %d\n",
-				status_thread_compactacion);
+		//fprintf(stderr, "Error - pthread_create() return code: %d\n",status_thread_compactacion);
 		exit(EXIT_FAILURE);
 	}
 	pthread_detach(threadCompactacion);
@@ -1679,7 +1674,7 @@ t_list* obtener_lista_de_registros(char** registros) {
 	t_list* lista_registros_actuales = list_create();
 	int j = 0;
 	while (registros[j] != NULL) {
-		mostrar_en_pantalla("Registro[j]: %s", DEBUG, registros[j]);
+		//mostrar_en_pantalla("Registro[j]: %s", DEBUG, registros[j]);
 		char** datos_registro = string_split(registros[j], ";");
 		Registro* registro = malloc(sizeof(Registro));
 //		registro->timeStamp = (unsigned long long) atoll(datos_registro[0]);
@@ -2273,14 +2268,14 @@ void montar_filesystem() {
 	strcpy(metadata_lfs_path, otra_entrada);
 	free(otra_entrada);
 
-	printf("%s\n", metadata_lfs_path);
+	//printf("%s\n", metadata_lfs_path);
 
 	t_config* metadata_lfs = config_create(metadata_lfs_path);
 	lfs_blocks = config_get_int_value(metadata_lfs, "BLOCKS");
 	lfs_block_size = config_get_int_value(metadata_lfs, "BLOCK_SIZE");
 
-	printf("%i\n", lfs_blocks);
-	printf("%i\n", lfs_block_size);
+	//printf("%i\n", lfs_blocks);
+	//printf("%i\n", lfs_block_size);
 
 	crear_n_bloques(lfs_blocks, ruta_a_bloques);
 
@@ -2306,7 +2301,7 @@ void crear_n_bloques(int n, char* ruta_a_bloques) {
 		char* ruta_a_bloque = string_new();
 		string_append(&ruta_a_bloque, ruta_a_bloques);
 		string_append_with_format(&ruta_a_bloque, "%i.bin", i);
-		printf("%s\n", ruta_a_bloque);
+		//printf("%s\n", ruta_a_bloque);
 		int fd = open(ruta_a_bloque, O_RDWR | O_CREAT | O_TRUNC, (mode_t) 0700);
 		close(fd);
 		free(ruta_a_bloque);
@@ -2319,7 +2314,7 @@ void copiar_metadata_lfs(char* ruta_a_metadata) {
 
 	string_append(&metadata_path, "Metadata.bin");
 
-	printf("%s\n", metadata_path);
+	//printf("%s\n", metadata_path);
 
 	int fd = open(metadata_path, O_RDWR | O_CREAT | O_TRUNC, (mode_t) 0700);
 	if (fd == -1) {
@@ -2421,9 +2416,9 @@ void* watch_config(char* config) {
 
 	wd = inotify_add_watch(fd, ".", IN_CREATE | IN_MODIFY | IN_DELETE);
 	if (wd == -1) {
-		printf("Couldn't add watch to %s\n", config);
+		////printf("Couldn't add watch to %s\n", config);
 	} else {
-		printf("Watching:: %s\n", config);
+		////printf("Watching:: %s\n", config);
 	}
 
 	/* do it forever*/

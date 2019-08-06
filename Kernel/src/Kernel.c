@@ -68,7 +68,6 @@ void *describeNuevo();
 
 char* conf_path;
 
-
 int main() {
 	/*
 	 *
@@ -151,7 +150,7 @@ int main() {
 	getaddrinfo(ip, puerto, &hints, &serverInfo);// Carga en serverInfo los datos de la conexion
 
 	/*
-	 * 	Ya se quien y a donde me tengo que conectar... ������Y ahora?
+	 * 	Ya se quien y a donde me tengo que conectar... Y ahora?
 	 *	Tengo que encontrar una forma por la que conectarme al server... Ya se! Un socket!
 	 *
 	 * 	Obtiene un socket (un file descriptor -todo en linux es un archivo-), utilizando la estructura serverInfo que generamos antes.
@@ -308,7 +307,7 @@ int main() {
 	int inotify_thread;
 
 	inotify_thread = pthread_create(&threadInotify, NULL, (void*) watch_config,
-	conf_path);
+			conf_path);
 	if (gossipingret) {
 		fprintf(stderr, "Error - pthread_create() return code: %d\n",
 				gossipingret);
@@ -414,7 +413,7 @@ void abrir_config(t_config** g_config) {
 
 t_log* iniciar_logger(void) {
 
-	return log_create(LOG_FILE_PATH, "kernel", 1, LOG_LEVEL_DEBUG);
+	return log_create(LOG_FILE_PATH, "kernel", 0, LOG_LEVEL_DEBUG);
 
 }
 
@@ -503,7 +502,6 @@ void* intentarEstablecerConexion() {
 		void conectarSiFueraPosible(Seed* seed) {
 			conecte = 0;
 			if (!seedConectado(seed)) {
-
 				struct addrinfo *serverInfo;
 				getaddrinfo(seed->ip, seed->puerto, &hints, &serverInfo);
 
@@ -544,14 +542,27 @@ void* intentarEstablecerConexion() {
 					free(mem_nueva);
 				}
 
-			}
+			} /*else if (atoi(seed->puerto) > 0) {
+			 struct addrinfo *serverInfo;
+			 serverSocket = socket(serverInfo->ai_family,
+			 serverInfo->ai_socktype, serverInfo->ai_protocol);
+			 getaddrinfo(seed->ip, seed->puerto, &hints, &serverInfo);
+			 if (connect(serverSocket, serverInfo->ai_addr,
+			 serverInfo->ai_addrlen) == 0) {
+			 enviar_handshake(KERNEL, serverSocket);
+			 num_memoria = recibir_numero_memoria(serverSocket);
+			 close(serverSocket);
+			 } else {
+			 desconectar_mem(seedConectado(seed));
+			 }
+			 }*/
 		}
 
 		pthread_mutex_lock(&gossiping_mutex);
 		list_iterate(tablaGossiping, &conectarSiFueraPosible);
 		pthread_mutex_unlock(&gossiping_mutex);
 
-		sleep(5);
+		usleep(1000000);
 	}
 }
 
@@ -570,8 +581,23 @@ int seedConectado(Seed* seed) {
 
 }
 
+int socketFromMem(Seed* seed) {
+
+	int tieneEsePuerto(Memoria* mem) {
+		return (strcmp(mem->con.puerto, seed->puerto) == 0
+				&& strcmp(mem->con.ip, seed->ip) == 0);
+	}
+
+	pthread_mutex_lock(&memorias_mutex);
+	Memoria* mem = list_find(memoriasConectadas, &tieneEsePuerto);
+	pthread_mutex_unlock(&memorias_mutex);
+
+	return mem->socket[0];
+
+}
+
 void desconectar_mem(int socket) {
-	//close(socket);
+//close(socket);
 
 	int num;
 
@@ -580,6 +606,7 @@ void desconectar_mem(int socket) {
 		for (int sock = 0; sock < multiprocesamiento; sock++) {
 			if (mem->socket[sock] == socket) {
 				num = mem->numero;
+				close(mem->socket);
 				free(mem->socket);
 				return 1;
 			}
@@ -653,7 +680,7 @@ void eliminar_metricas(int num_mem) {
 
 	void mostrar(MetricaPorMemoria* met) {
 
-		printf("Metricas Memoria: %d \n", met->numero_memoria);
+		//printf("Metricas Memoria: %d \n", met->numero_memoria);
 
 	}
 
@@ -708,7 +735,7 @@ int select_kernel(char* parametros, int exec_index) {
 
 	if (!fill_package_select(&package, parametros)) {
 
-		printf("Incorrecta cantidad de parametros\n");
+		//printf("Incorrecta cantidad de parametros\n");
 		entradaValida = 0;
 	}
 	if (entradaValida) {
@@ -719,8 +746,8 @@ int select_kernel(char* parametros, int exec_index) {
 
 		serializedPackage = serializarSelect(&package);
 
-		int socketAEnviar = socketAUtilizar(package.tabla, exec_index, SELECT,
-				package.key);
+		int socketAEnviar = socketAUtilizar(package.tabla, exec_index,
+		SELECT, package.key);
 
 		if (socketAEnviar != -1) {
 
@@ -750,7 +777,7 @@ int select_kernel(char* parametros, int exec_index) {
 
 		} else {
 			ok = 0;
-			printf("Ninguna memoria asignada para este criterio\n");
+			log_info_s("Ninguna memoria asignada para este criterio\n");
 		}
 
 		free(package.tabla);
@@ -768,7 +795,7 @@ int insert_kernel(char* parametros, int exec_index) {
 	int consistencia;
 
 	if (!fill_package_insert(&package, parametros, 0)) {
-		printf("Incorrecta cantidad de parametros\n");
+		//printf("Incorrecta cantidad de parametros\n");
 		entradaValida = 0;
 	}
 
@@ -781,8 +808,8 @@ int insert_kernel(char* parametros, int exec_index) {
 
 		serializedPackage = serializarInsert(&package);
 
-		int socketAEnviar = socketAUtilizar(package.tabla, exec_index, INSERT,
-				package.key);
+		int socketAEnviar = socketAUtilizar(package.tabla, exec_index,
+		INSERT, package.key);
 		if (socketAEnviar != -1) {
 			send(socketAEnviar, serializedPackage, package.total_size, 0);
 
@@ -841,7 +868,7 @@ int insert_kernel(char* parametros, int exec_index) {
 
 		} else {
 			ok = 0;
-			printf("Ninguna memoria asignada para este criterio\n");
+			log_info_s("Ninguna memoria asignada para este criterio\n");
 		}
 		free(package.tabla);
 		free(package.value);
@@ -856,7 +883,7 @@ void describe(char* parametros, int exec_index) {
 	t_PackageDescribe package;
 
 	if (!fill_package_describe(&package, parametros)) {
-		printf("Incorrecta cantidad de parametros\n");
+		log_info_s("Incorrecta cantidad de parametros\n");
 		entradaValida = 0;
 	}
 	if (entradaValida) {
@@ -881,7 +908,7 @@ void describe(char* parametros, int exec_index) {
 			recibirDescribe(socketAEnviar);
 
 		} else {
-			printf("Ninguna memoria asignada para este criterio\n");
+			log_info_s("Ninguna memoria asignada para este criterio\n");
 		}
 
 		dispose_package(&serializedPackage);
@@ -1040,7 +1067,7 @@ void drop(char* parametros, int exec_index) {
 			eliminarTabla(package.nombre_tabla);
 
 		} else {
-			printf("Ninguna memoria asignada para este criterio\n");
+			log_info_s("Ninguna memoria asignada para este criterio\n");
 		}
 
 		dispose_package(&serializedPackage);
@@ -1067,11 +1094,11 @@ void eliminarTabla(char* nombre) {
 
 void recibirDescribe(int serverSocket) {
 
-	log_warning(logger_Kernel,"LLEGUE");
+//log_warning(logger_Kernel,"LLEGUE");
 	t_describe describe;
 
 	if (!(int) recieve_and_deserialize_describe(&describe, serverSocket)) {
-		log_warning(logger_Kernel,"NOO");
+		//log_warning(logger_Kernel,"NOO");
 		pthread_mutex_lock(&memorias_mutex);
 		desconectar_mem(serverSocket);
 		pthread_mutex_unlock(&memorias_mutex);
@@ -1079,11 +1106,11 @@ void recibirDescribe(int serverSocket) {
 		log_error_s(logger_Kernel, "Memoria desconectada");
 	} else {
 		if (strcmp(describe.tablas[0].nombre_tabla, "NO_TABLE") == 0) {
-			log_warning(logger_Kernel,"0");
+			//log_warning(logger_Kernel,"0");
 			log_warning_s(logger_Kernel, "La tabla no existe");
 		} else {
 			for (int i = 0; i < describe.cant_tablas; i++) {
-				log_warning(logger_Kernel,"1");
+				//log_warning(logger_Kernel,"1");
 				//printf("%s\n", describe.tablas[i].nombre_tabla);
 				if (obtenerConsistencia(describe.tablas[i].nombre_tabla) == NULL) {
 					Tabla* tabla_nueva = malloc(sizeof(Tabla));
@@ -1095,7 +1122,7 @@ void recibirDescribe(int serverSocket) {
 					pthread_mutex_unlock(&tablas_actuales_mutex);
 				}
 			}
-			log_warning(logger_Kernel,"2");
+			//log_warning(logger_Kernel,"2");
 			/*
 			 pthread_mutex_lock(&tablas_actuales_mutex);
 			 for (int tabla2 = 0; tabla2 < tablas_actuales->elements_count;
@@ -1119,7 +1146,7 @@ void create(char* parametros, int exec_index) {
 	t_PackageCreate package;
 
 	if (!fill_package_create(&package, parametros)) {
-		printf("Incorrecta cantidad de parametros\n");
+		log_info_s("Incorrecta cantidad de parametros\n");
 		entradaValida = 0;
 	}
 
@@ -1161,7 +1188,8 @@ void journal(char* parametros, int exec_index) {
 
 	void enviarJournal(Memoria* mem) {
 		int response = send(mem->socket[exec_index], serializedPackage,
-				sizeof(int), MSG_NOSIGNAL);
+				sizeof(int),
+				MSG_NOSIGNAL);
 		if (response == -1) {
 			desconectar_mem(mem->socket[exec_index]);
 		}
@@ -1183,7 +1211,8 @@ void seedPackageToTable(t_PackageSeeds* seeds) {
 					&& strcmp(seed->ip, seeds->seeds[i].ip) == 0);
 		}
 
-		if (!list_any_satisfy(tablaGossiping, &estaLaSeed)) {
+		if (!list_any_satisfy(tablaGossiping, &estaLaSeed)
+				&& atoi(seeds->seeds[i].puerto) > 0) {
 			Seed* seed = malloc(sizeof(Seed));
 			strcpy(seed->puerto, seeds->seeds[i].puerto);
 			strcpy(seed->ip, seeds->seeds[i].ip);
@@ -1260,6 +1289,7 @@ void *describeNuevo() {
 			char *serializedPackage;
 			int entradaValida = 1;
 			t_PackageDescribe package;
+			package.tabla_long = 0;
 
 			serializedPackage = serializarRequestDescribe(&package);
 
@@ -1311,7 +1341,7 @@ void* describeCadaX(int serverSocket) {
 void add(char* parametros, int serverSocket) {
 	char** parametrosSeparados = string_split(parametros, " ");
 	if (cant_parametros(parametrosSeparados) != 4) {
-		printf("Cantidad de parametros invalidos\n");
+		log_info_s("Cantidad de parametros invalidos\n");
 	} else {
 		int num_mem = atoi(parametrosSeparados[1]);
 		int consistency = consistency_to_int(parametrosSeparados[3]);
@@ -1385,7 +1415,7 @@ void metrics() {
 	}
 	log_debug(logger_Kernel, "Latencies:");
 	log_debug(logger_Kernel, "Read Latency SC %f", tiempoPromedio);
-	//printf("Read Latency SC %f \n", tiempoPromedio);
+//printf("Read Latency SC %f \n", tiempoPromedio);
 
 	if (select_ec.cantidad == 0) {
 		tiempoPromedio = 0;
@@ -1394,7 +1424,7 @@ void metrics() {
 				/ (double) select_ec.cantidad;
 	}
 	log_debug(logger_Kernel, "Read Latency EC %f", tiempoPromedio);
-	//printf("Read Latency EC %f \n", tiempoPromedio);
+//printf("Read Latency EC %f \n", tiempoPromedio);
 
 	if (select_shc.cantidad == 0) {
 		tiempoPromedio = 0;
@@ -1403,7 +1433,7 @@ void metrics() {
 				/ (double) select_shc.cantidad;
 	}
 	log_debug(logger_Kernel, "Read Latency SHC %f", tiempoPromedio);
-	//printf("Read Latency SHC %f \n", tiempoPromedio);
+//printf("Read Latency SHC %f \n", tiempoPromedio);
 
 //Write Latency
 	if (insert_sc.cantidad == 0) {
@@ -1413,7 +1443,7 @@ void metrics() {
 				/ (double) insert_sc.cantidad;
 	}
 	log_debug(logger_Kernel, "Write Latency SC %f", tiempoPromedio);
-	//printf("Write Latency SC %f \n", tiempoPromedio);
+//printf("Write Latency SC %f \n", tiempoPromedio);
 
 	if (insert_ec.cantidad == 0) {
 		tiempoPromedio = 0;
@@ -1424,7 +1454,7 @@ void metrics() {
 	}
 
 	log_debug(logger_Kernel, "Write Latency EC %f", tiempoPromedio);
-	//printf("Write Latency EC %f \n", tiempoPromedio);
+//printf("Write Latency EC %f \n", tiempoPromedio);
 
 	if (insert_shc.cantidad == 0) {
 		tiempoPromedio = 0;
@@ -1434,27 +1464,27 @@ void metrics() {
 
 	}
 	log_debug(logger_Kernel, "Write Latency SHC %f \n", tiempoPromedio);
-	//printf("Write Latency SHC %f \n", tiempoPromedio);
+//printf("Write Latency SHC %f \n", tiempoPromedio);
 
-	//Reads
-	//printf("Reads SC: %d \n", select_sc.cantidad);
+//Reads
+//printf("Reads SC: %d \n", select_sc.cantidad);
 	log_debug(logger_Kernel, "Reads:");
 	log_debug(logger_Kernel, "Reads SC: %d", select_sc.cantidad);
-	//printf("Reads EC: %d \n", select_ec.cantidad);
+//printf("Reads EC: %d \n", select_ec.cantidad);
 	log_debug(logger_Kernel, "Reads EC: %d", select_ec.cantidad);
-	//printf("Reads SHC: %d \n", select_shc.cantidad);
+//printf("Reads SHC: %d \n", select_shc.cantidad);
 	log_debug(logger_Kernel, "Reads SHC: %d \n", select_shc.cantidad);
 
-	//Writes
-	//printf("Writes SC: %d \n", insert_sc.cantidad);
+//Writes
+//printf("Writes SC: %d \n", insert_sc.cantidad);
 	log_debug(logger_Kernel, "Writes:");
 	log_debug(logger_Kernel, "Writes SC: %d", insert_sc.cantidad);
-	//printf("Writes EC: %d \n", insert_ec.cantidad);
+//printf("Writes EC: %d \n", insert_ec.cantidad);
 	log_debug(logger_Kernel, "Writes EC: %d", insert_ec.cantidad);
-	//printf("Writes SHC: %d \n", insert_shc.cantidad);
+//printf("Writes SHC: %d \n", insert_shc.cantidad);
 	log_debug(logger_Kernel, "Writes SHC: %d \n", insert_shc.cantidad);
 
-	//Memory Loads
+//Memory Loads
 	pthread_mutex_lock(&metricas);
 	list_iterate(metricas_memorias, &mostrarMemoria);
 	pthread_mutex_unlock(&metricas);
@@ -1466,7 +1496,7 @@ int run(char* rutaRecibida, int serverSocket) {
 //char* rutaArchivo = malloc(strlen(rutaRecibida));
 //strcpy(rutaArchivo, rutaRecibida);
 
-	printf("%s viajando a new!\n", rutaRecibida);
+	//printf("%s viajando a new!\n", rutaRecibida);
 
 	Script* test = levantar_script(rutaRecibida);
 
@@ -1655,9 +1685,9 @@ void* watch_config(char* config) {
 
 	wd = inotify_add_watch(fd, ".", IN_CREATE | IN_MODIFY | IN_DELETE);
 	if (wd == -1) {
-		printf("Couldn't add watch to %s\n", config);
+		log_info_s("Couldn't add watch to %s\n", config);
 	} else {
-		printf("Watching:: %s\n", config);
+		log_info_s("Watching:: %s\n", config);
 	}
 
 	/* do it forever*/
